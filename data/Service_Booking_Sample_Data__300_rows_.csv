@@ -1,0 +1,11 @@
+CustomerName,Phone,Email,Brand,Model,LicensePlate,Mileage,ServiceNeeded,PreferredDate,PreferredTime
+Customer_1,0895686362,customer1@example.com,Kia,Rio,คค-7192,122633,Tire Rotation,2025-01-28,14:30
+Customer_2,0815824272,customer2@example.com,Toyota,Camry,ขก-2162,170217,Oil Change,2025-03-10,14:30
+Customer_3,0844343599,customer3@example.com,Toyota,Corolla,คค-4613,40204,AC Repair,2025-08-03,08:00
+Customer_4,0825663490,customer4@example.com,Hyundai,i30,กข-7601,117018,Engine Diagnostics,2025-10-24,08:30
+Customer_5,0824875704,customer5@example.com,Honda,CR-V,งง-4085,30795,Full Service,2025-05-23,13:00
+Customer_6,0849932007,customer6@example.com,Mitsubishi,Triton,งง-1663,74728,AC Repair,2025-04-15,10:30
+Customer_7,0875449239,customer7@example.com,BMW,3 Series,กข-6567,138697,Oil Change,2025-03-08,09:00
+Customer_8,0892897650,customer8@example.com,Toyota,Corolla,คค-3383,75102,Oil Change,2025-01-28,16:30
+Customer_9,0879317090,customer9@example.com,Toyota,Corolla,กข-1984,72176,Tire Rotation,2025-10-03,14:00
+Customer_10,0867728071,customer10@example.com,Honda,Civic,คค-3947,43771,Brake Check,2025-08-24,10:00
