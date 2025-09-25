@@ -9,6 +9,7 @@ import torch
 
 from langchain_core.documents import Document  # updated import
 from langchain_text_splitters import TextSplitter  # base class for custom splitter
+
 # from langchain_text_splitters import RecursiveCharacterTextSplitter  # <- removed
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import (
@@ -16,19 +17,6 @@ from langchain_community.document_loaders import (
     TextLoader,
     CSVLoader,
 )
-
-# -------------------------
-# Small config
-# -------------------------
-MODEL_NAME = "BAAI/bge-m3"  # multilingual BGE-M3
-# Auto-pick device
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-
-NORMALIZE = True  # cosine similarity works best with normalized vecs
-BATCH_SIZE = 32  # embedding batch size
-
-CHUNK_SIZE = 800  # characters per chunk
-CHUNK_OVERLAP = 150  # characters
 
 
 # -------------------------
@@ -106,12 +94,12 @@ class EmbeddingService:
 
     def __init__(
         self,
-        model_name: str = MODEL_NAME,
-        device: Optional[str] = DEVICE,
-        normalize: bool = NORMALIZE,
-        batch_size: int = BATCH_SIZE,
-        chunk_size: int = CHUNK_SIZE,
-        chunk_overlap: int = CHUNK_OVERLAP,
+        model_name: str,
+        device: Optional[str],
+        normalize: bool,
+        batch_size: int,
+        chunk_size: int,
+        chunk_overlap: int,
     ):
         # HuggingFace BGE-M3 via LangChain adapter
         self.embeddings = HuggingFaceEmbeddings(
