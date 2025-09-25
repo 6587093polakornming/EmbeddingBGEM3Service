@@ -10,7 +10,7 @@ import torch
 from langchain_core.documents import Document  # updated import
 from langchain_text_splitters import TextSplitter  # base class for custom splitter
 # from langchain_text_splitters import RecursiveCharacterTextSplitter  # <- removed
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import (
     PyPDFLoader,
     TextLoader,
@@ -114,7 +114,7 @@ class EmbeddingService:
         chunk_overlap: int = CHUNK_OVERLAP,
     ):
         # HuggingFace BGE-M3 via LangChain adapter
-        self.embeddings = HuggingFaceBgeEmbeddings(
+        self.embeddings = HuggingFaceEmbeddings(
             model_name=model_name,
             model_kwargs={"device": device} if device else {},
             encode_kwargs={
