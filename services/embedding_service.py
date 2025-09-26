@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import uuid
-import torch
 import os
 
 from langchain_core.documents import Document
