@@ -16,6 +16,8 @@ from langchain_community.document_loaders import (
     PyPDFLoader,
     TextLoader,
     CSVLoader,
+    Docx2txtLoader,
+    UnstructuredExcelLoader
 )
 
 
@@ -153,6 +155,10 @@ class EmbeddingService:
             docs = self._load_txt(path)
         elif suffix == ".csv":
             docs = self._load_csv(path, delimiter=csv_delimiter, encoding=csv_encoding)
+        elif suffix == ".docx":
+            docs = self._load_word(path)
+        elif suffix == ".xlsx":
+            docs = self._load_excel(path)
         else:
             raise ValueError(f"Unsupported file type: {suffix} (only .pdf, .txt, .csv)")
 
@@ -187,14 +193,14 @@ class EmbeddingService:
         loader = PyPDFLoader(str(path))
         docs = loader.load()
         for d in docs:
-            d.metadata.setdefault("source", str(path))
+            d.metadata.setdefault("source", path.name)
         return docs
 
     def _load_txt(self, path: Path) -> List[Document]:
         loader = TextLoader(str(path), encoding="utf-8")
         docs = loader.load()
         for d in docs:
-            d.metadata.setdefault("source", str(path))
+            d.metadata.setdefault("source", path.name)
         return docs
 
     def _load_csv(self, path: Path, *, delimiter: str, encoding: str) -> List[Document]:
@@ -205,5 +211,19 @@ class EmbeddingService:
         )
         docs = loader.load()
         for d in docs:
-            d.metadata.setdefault("source", str(path))
+            d.metadata.setdefault("source", path.name)
+        return docs
+    
+    def _load_word(self, path:Path) -> List[Document]:
+        loader = Docx2txtLoader(str(path))
+        docs = loader.load()
+        for d in docs:
+            d.metadata.setdefault("source", path.name)
+        return docs
+    
+    def _load_excel(self, path:Path, mode="elements") -> List[Document]:
+        loader = UnstructuredExcelLoader(str(path), mode=mode)
+        docs = loader.load()
+        for d in docs:
+            d.metadata.setdefault("source", path.name)
         return docs
