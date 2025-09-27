@@ -4,11 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 import uuid
-import os
 
 from langchain_core.documents import Document
 from langchain_text_splitters import TextSplitter
-from langchain_huggingface import HuggingFaceEmbeddings
+from FlagEmbedding import BGEM3FlagModel
 from langchain_community.document_loaders import (
     PyPDFLoader,
     TextLoader,
@@ -95,7 +94,7 @@ class EmbeddingService:
     - TXT  -> TextLoader
     - CSV  -> CSVLoader (row = doc)
     - Splitter: PureSizeTextSplitter (size-only)
-    - Embeddings: HuggingFaceEmbeddings (BAAI/bge-m3)
+    - Embeddings: HuggingFaceBgeEmbeddings (BAAI/bge-m3)
     """
 
     def __init__(
@@ -107,14 +106,14 @@ class EmbeddingService:
         chunk_size: int,
         chunk_overlap: int,
     ):
-        # --- NEW: offline-aware resolution (repo id -> HF_HOME cache path) ---
-        resolved_model_name = self._resolve_model_prefer_cache(model_name)
-        
-        self.embeddings = HuggingFaceEmbeddings(
-            model_name=resolved_model_name,
-            cache_folder=os.getenv("HF_HOME"),        # no hardcode, no dup in model_kwargs
-            model_kwargs={**({"device": device} if device else {})},
-            encode_kwargs={"normalize_embeddings": normalize, "batch_size": batch_size},
+        # Use BGEM3FlagModel instead of HuggingFaceEmbeddings
+        self.embeddings = BGEM3FlagModel(
+            model_name_or_path=model_name,
+            devices=device,
+            use_fp16=True,
+            batch_size=batch_size,
+            normalize_embeddings=normalize,
+            return_dense=True,
         )
 
         self.splitter = PureSizeTextSplitter(
@@ -128,11 +127,25 @@ class EmbeddingService:
 
     # ---------- Public API ----------
     def embed_query(self, text: str) -> List[float]:
-        return self.embeddings.embed_query((text or "").strip())
+        out = self.embeddings.encode(
+            (text or "").strip(),
+            return_dense=True,
+        )
+        vec = out["dense_vecs"]
+        # Defensive: handle ndarray (D,), ndarray (1,D), or list
+        return (
+            vec[0].tolist()
+            if getattr(vec, "ndim", 1) > 1
+            else (vec.tolist() if hasattr(vec, "tolist") else list(vec))
+        )
 
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         safe_texts = [t.strip() for t in texts]
-        return self.embeddings.embed_documents(safe_texts)
+        out = self.embeddings.encode(
+            safe_texts,
+            return_dense=True,
+        )
+        return out["dense_vecs"].tolist()
 
     def embed_file(
         self,
@@ -163,7 +176,14 @@ class EmbeddingService:
         if not split_docs:
             return []
 
-        vectors = self.embeddings.embed_documents([d.page_content for d in split_docs])
+        texts = [d.page_content.strip() for d in split_docs]
+
+        # Encode chunks with BGEM3 and extract dense vectors
+        out = self.embeddings.encode(
+            texts,
+            return_dense=True,
+        )
+        vectors = out["dense_vecs"].tolist()
 
         results: List[ChunkEmbedding] = []
         total = len(split_docs)
@@ -183,7 +203,7 @@ class EmbeddingService:
             )
         return results
 
-    # ---------- Loaders (unchanged) ----------
+    # ---------- Loaders ----------
     def _load_pdf(self, path: Path) -> List[Document]:
         loader = PyPDFLoader(str(path))
         docs = loader.load()
@@ -222,57 +242,3 @@ class EmbeddingService:
         for d in docs:
             d.metadata.setdefault("source", path.name)
         return docs
-
-    def _resolve_model_prefer_cache(self, name_or_path: str) -> str:
-        """
-        Prefer a cached HF_HOME snapshot when a repo id is given, regardless of env vars.
-        - If a local path is passed and exists -> use it
-        - Else if name looks like 'org/name' and a cached snapshot exists in HF_HOME -> use that path
-        - Else -> return the original name (may trigger network if not cached)
-        """
-        p = Path(name_or_path)
-        if p.exists():
-            return str(p.resolve())
-
-        # Heuristic: repo id looks like "org/name"
-        is_repo_id = ("/" in name_or_path) and not name_or_path.startswith(
-            (".", "/", "\\")
-        )
-        if is_repo_id:
-            cached = self._hf_cached_snapshot_path(name_or_path)
-            if cached is not None:
-                return str(cached)
-        return name_or_path
-
-
-    def _hf_cached_snapshot_path(self, repo_id: str) -> Optional[Path]:
-        if "/" not in repo_id:
-            return None
-        org, model = repo_id.split("/", 1)
-
-        # if you don't want to depend on env vars, hardcode your HF_HOME here:
-        # hf_home = Path(r"D:\huggingface_cache")
-        from pathlib import Path
-        import os
-        hf_home = Path(os.getenv("HF_HOME") or (Path.home() / ".cache" / "huggingface"))
-
-        base = hf_home / "hub" / f"models--{org}--{model}" / "snapshots"
-        if not base.exists():
-            return None
-
-        snapshots = [d for d in base.iterdir() if d.is_dir()]
-        if not snapshots:
-            return None
-
-        # newest first
-        snapshots.sort(key=lambda d: d.stat().st_mtime, reverse=True)
-
-        # Only accept snapshots that look like a proper SentenceTransformers folder
-        required_files = {"modules.json"}  # strongest signal for sbert layout
-        for d in snapshots:
-            if all((d / f).exists() for f in required_files):
-                return d
-
-        # If no snapshot has modules.json, return None -> we will fall back to repo id (online)
-        return None
-
